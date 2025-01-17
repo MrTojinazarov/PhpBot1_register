@@ -174,91 +174,63 @@ class TelegramController extends Controller
                                 "Chat ID: " . $chat_id;
 
 
-                                $replyMarkup = [
-                                    'inline_keyboard' => [
-                                        [
-                                            ['text' => 'Tasdiqlash✅', 'callback_data' => "confirm_{$chat_id}"],
-                                            ['text' => 'Bekor qilish⛔️', 'callback_data' => "cancel_{$chat_id}"],
-                                        ]
+                            $replyMarkup = [
+                                'inline_keyboard' => [
+                                    [
+                                        ['text' => 'Tasdiqlash✅', 'callback_data' => "confirm_{$chat_id}"],
+                                        ['text' => 'Bekor qilish⛔️', 'callback_data' => "cancel_{$chat_id}"],
                                     ]
-                                ];
-                                $this->store($admin->chat_id, $userData, $replyMarkup);
-                            } else {
-                                $this->store($chat_id, "Admin rolidagi foydalanuvchi topilmadi, shu sababdan sizning statusingiz faol emas");
-                            }
-    
-                            $this->store($chat_id, "Siz muvaffaqiyatli ro'yxatdan o'tdingiz!");
-    
-                            Cache::forget("register_step_{$chat_id}");
-                            Cache::forget("register_name_{$chat_id}");
-                            Cache::forget("register_email_{$chat_id}");
-                            Cache::forget("register_password_{$chat_id}");
-                            Cache::forget("confirmation_code_{$chat_id}");
+                                ]
+                            ];
+                            $this->store($admin->chat_id, $userData, $replyMarkup);
                         } else {
-                            $this->store($chat_id, "Rasmni yuklab olishda muammo yuz berdi. Iltimos, qaytadan urinib ko'ring.");
+                            $this->store($chat_id, "Admin rolidagi foydalanuvchi topilmadi, shu sababdan sizning statusingiz faol emas");
                         }
+
+                        $this->store($chat_id, "Siz muvaffaqiyatli ro'yxatdan o'tdingiz!");
+
+                        Cache::forget("register_step_{$chat_id}");
+                        Cache::forget("register_name_{$chat_id}");
+                        Cache::forget("register_email_{$chat_id}");
+                        Cache::forget("register_password_{$chat_id}");
+                        Cache::forget("confirmation_code_{$chat_id}");
                     } else {
-                        $this->store($chat_id, "Iltimos, rasm yuboring!");
+                        $this->store($chat_id, "Rasmni yuklab olishda muammo yuz berdi. Iltimos, qaytadan urinib ko'ring.");
                     }
-                    return;
+                } else {
+                    $this->store($chat_id, "Iltimos, rasm yuboring!");
                 }
-    
-                if ($text === '/profile') {
-                    $user = User::where('chat_id', $chat_id)->first();
-    
-                    if ($user) {
-                        $profileMessage = "<b>Sizning profilingiz:</b>\n\n" .
-                            "<b>Ism:</b> {$user->name}\n" .
-                            "<b>Email:</b> {$user->email}";
-    
-                        $this->store($chat_id, $profileMessage);
-    
-                        if ($user->img) {
-                            $filePath = storage_path("app/public/{$user->img}");
-                            if (file_exists($filePath)) {
-                                Http::attach('photo', file_get_contents($filePath), basename($filePath))
-                                    ->post("https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN') . "/sendPhoto", [
-                                        'chat_id' => $chat_id,
-                                    ]);
-                            } else {
-                                $this->store($chat_id, "Profilingiz uchun rasm topilmadi.");
-                            }
-                        } else {
-                            $this->store($chat_id, "Profilingiz uchun rasm yo'q.");
-                        }
-                    } else {
-                        $this->store($chat_id, "Profilingiz topilmadi. Iltimos, avval ro'yxatdan o'ting.");
-                    }
-                }
-                if ($text === 'Login') {
+            }
+
+            if ($text === 'Login') {
                     Cache::put("login_step_{$chat_id}", 'email');
                     $this->store($chat_id, "Iltimos, emailingizni kiriting:", [
                         'remove_keyboard' => true,
                     ]);
-    
+
                     return;
-                }
-    
-                if (Cache::get("login_step_{$chat_id}") === 'email') {
+            }
+
+            if (Cache::get("login_step_{$chat_id}") === 'email') {
                     if (!filter_var($text, FILTER_VALIDATE_EMAIL)) {
                         $this->store($chat_id, "Iltimos, haqiqiy email manzil kiriting!");
                         return;
                     }
-    
+
                     Cache::put("login_email_{$chat_id}", $text);
                     Cache::put("login_step_{$chat_id}", 'password');
                     $this->store($chat_id, "Iltimos, parolingizni kiriting:");
                     return;
-                }
-    
-                if (Cache::get("login_step_{$chat_id}") === 'password') {
+            }
+
+            if (Cache::get("login_step_{$chat_id}") === 'password') {
                     Cache::put("login_password_{$chat_id}", $text);
-    
+
                     $this->del($message_id, $chat_id);
-    
+
                     $email = Cache::get("login_email_{$chat_id}");
                     $password = Cache::get("login_password_{$chat_id}");
-    
+
                     $user = User::where('email', $email)->first();
 
 
@@ -266,12 +238,12 @@ class TelegramController extends Controller
                         Cache::forget("login_step_{$chat_id}");
                         Cache::forget("login_email_{$chat_id}");
                         Cache::forget("login_password_{$chat_id}");
-    
+
                         $this->store($chat_id, "Muvaffaqiyatli kirish! Xush kelibsiz, {$user->name}.");
                         $user->update(['chat_id' => $chat_id]);
-    
+
                         $admin_chat_id = User::where('role', 'admin')->first()->chat_id;
-    
+
                         $this->store($admin_chat_id, "Iltimos, foydalanuvchilarni tekshiring:", [
                             'keyboard' => [
                                 [
@@ -282,67 +254,66 @@ class TelegramController extends Controller
                             'resize_keyboard' => true,
                             'one_time_keyboard' => true,
                         ]);
-    
                     } else {
                         $this->store($chat_id, "Email yoki parol noto'g'ri. Iltimos, qaytadan urinib ko'ring.");
                     }
-                }
-    
-                if ($text === 'Barcha statusi 1 bo\'lgan foydalanuvchilar') {
+            }
+
+            if ($text === 'Barcha statusi 1 bo\'lgan foydalanuvchilar') {
                     $users = User::where('role', '!=', 'admin')->where('status', 1)->get();
-    
+
                     if ($users->isEmpty()) {
                         $this->store($chat_id, "Bunday statusli foydalanuvchilar mavjud emas.");
                     } else {
                         $userList = "Barcha statusi 1 bo'lgan foydalanuvchilar:\n";
                         $counter = 1;
-    
+
                         foreach ($users as $user) {
                             $userList .= "{$counter}) Foydalanuvchi nomi: {$user->name}, Email: {$user->email}\n";
                             $counter++;
                         }
-    
+
                         $this->store($chat_id, $userList . "\nIltimos, foydalanuvchi raqamini kiriting, uning statusini teskari qilish uchun.");
                     }
-                }
-    
-                if ($text === 'Barcha statusi 0 bo\'lgan foydalanuvchilar') {
+            }
+
+            if ($text === 'Barcha statusi 0 bo\'lgan foydalanuvchilar') {
                     $users = User::where('role', '!=', 'admin')->where('status', 0)->get();
-    
+
                     if ($users->isEmpty()) {
                         $this->store($chat_id, "Bunday statusli foydalanuvchilar mavjud emas.");
                     } else {
                         $userList = "Barcha statusi 0 bo'lgan foydalanuvchilar:\n";
                         $counter = 1;
-    
+
                         foreach ($users as $user) {
                             $userList .= "{$counter}) Foydalanuvchi nomi: {$user->name}, Email: {$user->email}\n";
                             $counter++;
                         }
-    
+
                         $this->store($chat_id, $userList . "\nIltimos, foydalanuvchi raqamini kiriting, uning statusini teskari qilish uchun.");
                     }
-                }
-    
-                if (is_numeric($text) && $text > 0 && $text <= count(User::where('role', '!=', 'admin')->get())) {
+            }
+
+            if (is_numeric($text) && $text > 0 && $text <= count(User::where('role', '!=', 'admin')->get())) {
                     $userIndex = (int) $text - 1;
-    
+
                     $allUsers = User::where('role', '!=', 'admin')->get();
                     if (isset($allUsers[$userIndex])) {
                         $user = $allUsers[$userIndex];
-    
+
                         $user->status = !$user->status;
                         $user->save();
-    
+
                         $newStatus = $user->status ? '1' : '0';
                         $this->store($chat_id, "Foydalanuvchining statusi teskari qilindi. Yangi status: {$newStatus}.");
                     } else {
                         $this->store($chat_id, "Bunday foydalanuvchi topilmadi. Iltimos, to'g'ri raqamni kiriting.");
                     }
-                }
-                if ($call) {
+            }
+            if ($call) {
                     $calldata = $call['data'];
-    
+
                     if (Str::startsWith($calldata, 'confirm_')) {
                         $call_id = Str::after($calldata, 'confirm_');
                         $user = User::where('chat_id', $call_id)->first();
@@ -360,11 +331,11 @@ class TelegramController extends Controller
                         }
                         return;
                     }
-    
+
                     if (Str::startsWith($calldata, 'cancel_')) {
                         $call_id = Str::after($calldata, 'cancel_');
                         $user = User::where('chat_id', $call_id)->first();
-    
+
                         if ($user) {
                             $user->delete();
                             $chatId = User::where('role', 'admin')->first()->chat_id;
@@ -376,7 +347,7 @@ class TelegramController extends Controller
                         }
                         return;
                     }
-    
+
                     if (Str::startsWith($calldata, 'accept')) {
                         Log::info('accept');
                         $orderId = Str::after($calldata, 'accept_');
@@ -402,56 +373,55 @@ class TelegramController extends Controller
                             $this->store($order->user->chat_id, "Buyurtma topilmadi.");
                         }
                     }
-                }
-            } catch (\Exception $exception) {
-                Log::error($exception);
-                return response()->json([
-                    'status' => 'error',
-                    'message' => $exception->getMessage()
-                ]);
             }
-        }
-
-        public function del($message_id, $chat_id)
-        {
-            $token = "https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN');
-            $payload = [
-                'chat_id' => $chat_id,
-                'message_id' => $message_id
-            ];
-            Http::post($token . '/deletemessage', $payload);
-        }
-        public function edit($message_id, $chat_id, $new_message)
-        {
-            $token = "https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN');
-            $payload = [
-                'chat_id' => $chat_id,
-                'message_id' => $message_id,
-                'text' => $new_message,
-                'parse_mode' => 'HTML',
-            ];
-            Http::post($token . '/editMessageText', $payload);
-        }
-
-
-        public function removeInlineKeyboard($message_id, $chat_id)
-        {
-            $token = "https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN');
-            $payload = [
-                'chat_id' => $chat_id,
-                'message_id' => $message_id,
-                'reply_markup' => json_encode(['inline_keyboard' => []])
-            ];
-            Http::post($token . '/editMessageReplyMarkup', $payload);
-        }
-        public function delLocation($message_id, $chat_id)
-        {
-            $token = "https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN');
-            $payload = [
-                'chat_id' => $chat_id,
-                'message_id' => $message_id
-            ];
-            Http::post($token . '/deletemessage', $payload);
+        } catch (\Exception $exception) {
+            Log::error($exception);
+            return response()->json([
+                'status' => 'error',
+                'message' => $exception->getMessage()
+            ]);
         }
     }
-                
+    public function del($message_id, $chat_id)
+    {
+        $token = "https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN');
+        $payload = [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id
+        ];
+        Http::post($token . '/deletemessage', $payload);
+    }
+
+    public function edit($message_id, $chat_id, $new_message)
+    {
+        $token = "https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN');
+        $payload = [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id,
+            'text' => $new_message,
+            'parse_mode' => 'HTML',
+        ];
+        Http::post($token . '/editMessageText', $payload);
+    }
+
+    public function removeInlineKeyboard($message_id, $chat_id)
+    {
+        $token = "https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN');
+        $payload = [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id,
+            'reply_markup' => json_encode(['inline_keyboard' => []])
+        ];
+        Http::post($token . '/editMessageReplyMarkup', $payload);
+    }
+
+    public function delLocation($message_id, $chat_id)
+    {
+        $token = "https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN');
+        $payload = [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id
+        ];
+        Http::post($token . '/deletemessage', $payload);
+    }
+}
